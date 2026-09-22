@@ -58,19 +58,25 @@ Some questions to start with:
 
 ## The code
 
-Nine files matter:
+The tree splits by runtime — `server/` is Node, `client/` is the browser, and
+`shared/` holds the contracts both sides import.
 
-| File | What it is |
-| --- | --- |
-| `src/server.ts` | Express server, one `POST /api/chat` endpoint |
-| `src/agent.ts` | The agent loop — system prompt, tool-use loop, final answer |
-| `src/tools.ts` | Tool schemas and tool execution |
-| `src/data.ts` | All the research data. Fictional, local, deterministic |
-| `src/ui/App.tsx` | The chat interface |
-| `src/ui/main.tsx`, `src/ui/styles.css` | Mount point and styling |
-| `vite.config.ts`, `package.json` | Vite dev server proxies `/api` to port 8787 |
+```
+src/
+  server/
+    index.ts          Express bootstrap
+    logger.ts         Renders agent events to the terminal
+    routes/chat.ts    POST /api/chat
+    agent/            The agent loop, its prompts and its types
+    tools/            Tool schemas, handlers and the name→handler registry
+    data/             All the research data. Fictional, local, deterministic
+  client/             The chat interface
+  shared/             Types that cross the wire
+```
 
-There are five fictional companies. The tools are backed entirely by `src/data.ts` —
+`vite.config.ts` proxies `/api` to port 8787.
+
+There are five fictional companies. The tools are backed entirely by `src/server/data/` —
 no network calls, no credentials beyond the model key, nothing to set up. Each tool
 sleeps for a few hundred milliseconds to stand in for a real API.
 

@@ -1,70 +1,17 @@
 /**
- * The agent's tools. These stand in for the real research APIs — same shapes,
- * local data, plus a little latency so the app behaves like the real thing.
+ * Tool implementations and the name→handler registry. These stand in for
+ * the real research APIs — same shapes, local data, plus a little latency
+ * so the app behaves like the real thing.
  */
 
-import type Anthropic from "@anthropic-ai/sdk";
-import { companies, documents, financials } from "./data.ts";
+import { companies, documents, financials } from "../data.ts";
+
+export { toolSchemas } from "./schemas.ts";
 
 /** Thrown when a tool cannot service a request. */
 export class ToolError extends Error {}
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-export const toolSchemas: Anthropic.Tool[] = [
-  {
-    name: "searchCompanies",
-    description:
-      "Search the coverage universe for companies matching a name. Returns the company name, ticker and sector for each match.",
-    input_schema: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "A company name or part of one." },
-      },
-      required: ["query"],
-    },
-  },
-  {
-    name: "getCompanyProfile",
-    description:
-      "Get a company's profile: description, sector, headquarters, headcount, business segments and the filings we hold.",
-    input_schema: {
-      type: "object",
-      properties: {
-        company: { type: "string", description: "The company name." },
-      },
-      required: ["company"],
-    },
-  },
-  {
-    name: "getFinancials",
-    description:
-      "Get annual and quarterly financials for a company: revenue, gross margin, operating income, net income and free cash flow.",
-    input_schema: {
-      type: "object",
-      properties: {
-        company: { type: "string", description: "The company name." },
-      },
-      required: ["company"],
-    },
-  },
-  {
-    name: "searchDocuments",
-    description:
-      "Keyword search over earnings call transcripts, filing excerpts and press releases.",
-    input_schema: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "Keywords to search for." },
-        company: {
-          type: "string",
-          description: "Optional. Restrict the search to one company.",
-        },
-      },
-      required: ["query"],
-    },
-  },
-];
 
 async function searchCompanies(query: string) {
   await sleep(250);

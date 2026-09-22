@@ -3,34 +3,14 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { companies } from "./data.ts";
-import { executeTool, toolSchemas } from "./tools.ts";
+import { executeTool, toolSchemas } from "../tools/index.ts";
+import { EDITOR_PROMPT, SYSTEM_PROMPT } from "./prompts.ts";
+import type { AgentEvent } from "../../shared/events.ts";
 
 const MODEL = process.env.ROGO_MODEL ?? "claude-sonnet-5";
 const MAX_ITERATIONS = 12;
 
 const client = new Anthropic();
-
-const SYSTEM_PROMPT = `You are Rogo Research, an assistant that answers questions about companies for financial analysts.
-
-Use the tools to look up companies, profiles, financials and source documents. Answer the analyst's question.
-
-Our coverage universe:
-${companies
-  .map(
-    (c) =>
-      `- ${c.name} (${c.ticker}) — ${c.sector}, HQ ${c.hq}, ${c.employees} employees. ${c.description}`,
-  )
-  .join("\n")}
-`;
-
-const EDITOR_PROMPT = `You are an editor. Rewrite the analyst's draft answer so that it reads clearly and is easy to follow. Keep it brief and conversational. Return only the rewritten answer.`;
-
-export type AgentEvent =
-  | { type: "iteration"; n: number }
-  | { type: "tool_start"; name: string; input: unknown }
-  | { type: "tool_end"; name: string; ms: number }
-  | { type: "tool_failed"; name: string; message: string };
 
 export interface AgentResult {
   answer: string;
