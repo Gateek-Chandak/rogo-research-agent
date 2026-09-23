@@ -1,12 +1,16 @@
-/** POST /api/chat — runs the agent for one question. */
+/** POST /api/chat — streams one agent run as Server-Sent Events. */
 
-import { Router } from "express";
-import { runAgent, type AgentResult } from "./agent/agent.ts";
-import type { AgentEvent } from "../shared/events.ts";
+import { Router, type Response } from "express";
+import { runAgent } from "./agent/agent.ts";
+import {
+  type AgentEvent,
+  type ChatRequest,
+  type ChatTurn,
+  type StreamEvent,
+} from "../shared/types.ts";
 
 export const apiRouter = Router();
 
-/** The terminal log is the fastest way to see what the agent actually did. */
 function logAgentEvent(event: AgentEvent): void {
   switch (event.type) {
     case "iteration":
@@ -21,18 +25,79 @@ function logAgentEvent(event: AgentEvent): void {
     case "tool_failed":
       console.log(`[tool]  ! ${event.name}: ${event.message}`);
       break;
+    case "notice":
+      console.log(`[agent] ${event.text}`);
+      break;
   }
 }
 
+function parseRequest(body: unknown): ChatRequest | null {
+  const { message, history } = (body ?? {}) as Partial<ChatRequest>;
+  const question = typeof message === "string" ? message.trim() : "";
+
+  if (!question) return null;
+
+  const turns = Array.isArray(history)
+    ? history.filter(
+        (turn): turn is ChatTurn =>
+          !!turn &&
+          (turn.role === "user" || turn.role === "assistant") &&
+          typeof turn.text === "string",
+      )
+    : [];
+
+  return { message: question, history: turns };
+}
+
+function openStream(res: Response): (event: StreamEvent) => void {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  return (event) => res.write(`data: ${JSON.stringify(event)}\n\n`);
+}
+
 apiRouter.post("/chat", async (req, res) => {
-  const message = String(req.body.message ?? "");
-  console.log(`\n[chat] ${message}`);
+  const parsed = parseRequest(req.body);
+
+  if (!parsed) {
+    res.status(400).json({ error: "That request could not be read." });
+    return;
+  }
+
+  console.log(`\n[chat] ${parsed.message}`);
+  const send = openStream(res);
+
+  const controller = new AbortController();
+  res.on("close", () => controller.abort());
 
   try {
-    const result: AgentResult = await runAgent(message, logAgentEvent);
-    res.json({ answer: result.answer });
+    const result = await runAgent({
+      question: parsed.message,
+      history: parsed.history,
+      signal: controller.signal,
+      onEvent: (event) => {
+        logAgentEvent(event);
+        send(event);
+      },
+    });
+
+    console.log(`[chat] done in ${result.ms}ms over ${result.iterations} iterations`);
+    send({ type: "done", ...result });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: String(err) });
+    if (controller.signal.aborted) {
+      console.log("[chat] cancelled by client");
+    } else {
+      console.error(err);
+      send({
+        type: "error",
+        message:
+          "I hit a problem partway through researching that. Nothing was saved — try asking again.",
+      });
+    }
+  } finally {
+    res.end();
   }
 });

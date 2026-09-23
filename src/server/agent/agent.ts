@@ -4,17 +4,30 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { executeTool, toolSchemas } from "../tools/index.ts";
-import { EDITOR_PROMPT, SYSTEM_PROMPT } from "./prompts.ts";
-import type { AgentEvent } from "../../shared/events.ts";
+import { SYSTEM_PROMPT } from "./prompts.ts";
+import {
+  MAX_HISTORY_TURNS,
+  type AgentEvent,
+  type ChatTurn,
+} from "../../shared/types.ts";
 
 const MODEL = process.env.ROGO_MODEL ?? "claude-sonnet-5";
 const MAX_ITERATIONS = 12;
+const MAX_TOKENS = 16000;
 
 const client = new Anthropic();
+
+export interface RunAgentOptions {
+  question: string;
+  history?: ChatTurn[];
+  onEvent?: (event: AgentEvent) => void;
+  signal?: AbortSignal;
+}
 
 export interface AgentResult {
   answer: string;
   iterations: number;
+  ms: number;
 }
 
 function textOf(message: Anthropic.Message): string {
@@ -24,26 +37,42 @@ function textOf(message: Anthropic.Message): string {
     .join("\n");
 }
 
-export async function runAgent(
-  question: string,
-  onEvent: (event: AgentEvent) => void,
-): Promise<AgentResult> {
-  const messages: Anthropic.MessageParam[] = [{ role: "user", content: question }];
+export async function runAgent({
+  question,
+  history = [],
+  onEvent = () => {},
+  signal,
+}: RunAgentOptions): Promise<AgentResult> {
+  const startedAt = Date.now();
 
-  let draft = "";
+  const messages: Anthropic.MessageParam[] = [
+    ...history.slice(-MAX_HISTORY_TURNS).map(({ role, text }) => ({
+      role,
+      content: text,
+    })),
+    { role: "user", content: question },
+  ];
+
+  let answer = "";
   let iterations = 0;
 
   while (iterations < MAX_ITERATIONS) {
     iterations++;
     onEvent({ type: "iteration", n: iterations });
 
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 16000,
-      system: SYSTEM_PROMPT,
-      tools: toolSchemas,
-      messages,
-    });
+    const stream = client.messages.stream(
+      {
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system: SYSTEM_PROMPT,
+        tools: toolSchemas,
+        messages,
+      },
+      { signal },
+    );
+
+    stream.on("text", (text) => onEvent({ type: "text_delta", text }));
+    const response = await stream.finalMessage();
 
     messages.push({ role: "assistant", content: response.content });
 
@@ -52,50 +81,49 @@ export async function runAgent(
     );
 
     if (toolUses.length === 0) {
-      draft = textOf(response);
+      answer = textOf(response);
       break;
     }
 
     const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
     for (const use of toolUses) {
-      const startedAt = Date.now();
-      onEvent({ type: "tool_start", name: use.name, input: use.input });
+      const startedToolAt = Date.now();
+      onEvent({ type: "tool_start", id: use.id, name: use.name, input: use.input });
 
       let content: string;
       try {
         const output = await executeTool(use.name, use.input as Record<string, unknown>);
         content = JSON.stringify(output);
+        onEvent({
+          type: "tool_end",
+          id: use.id,
+          name: use.name,
+          ms: Date.now() - startedToolAt,
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         content = `${use.name} returned: ${message}`;
-        onEvent({ type: "tool_failed", name: use.name, message });
+        onEvent({
+          type: "tool_failed",
+          id: use.id,
+          name: use.name,
+          ms: Date.now() - startedToolAt,
+          message,
+        });
       }
 
-      onEvent({ type: "tool_end", name: use.name, ms: Date.now() - startedAt });
       toolResults.push({ type: "tool_result", tool_use_id: use.id, content });
     }
 
     messages.push({ role: "user", content: toolResults });
   }
 
-  if (!draft) {
-    draft =
+  if (!answer) {
+    onEvent({ type: "notice", text: "Ran out of research steps." });
+    answer =
       "I looked at a number of sources but ran out of research steps before I could pull the answer together. Try asking a narrower question.";
   }
 
-  // Polish the draft before showing it to the analyst.
-  const edited = await client.messages.create({
-    model: MODEL,
-    max_tokens: 16000,
-    system: EDITOR_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: `Research transcript:\n${JSON.stringify(messages)}\n\nDraft answer:\n${draft}\n\nRewrite the draft answer.`,
-      },
-    ],
-  });
-
-  return { answer: textOf(edited), iterations };
+  return { answer, iterations, ms: Date.now() - startedAt };
 }
