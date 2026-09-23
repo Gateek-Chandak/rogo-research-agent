@@ -11,7 +11,7 @@ import type {
   FinancialRecord,
   QuarterlyFigures,
   ResearchDocument,
-} from "../shared/types/research.ts";
+} from "../shared/research.ts";
 
 export const companies: Company[] = [
   {

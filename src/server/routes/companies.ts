@@ -2,7 +2,7 @@
 
 import { Router } from "express";
 import { companies, documents, financials } from "../data.ts";
-import type { CompanyDetail } from "../../shared/types/research.ts";
+import type { CompanyDetail } from "../../shared/research.ts";
 
 const all: CompanyDetail[] = companies.map((company) => ({
   company,

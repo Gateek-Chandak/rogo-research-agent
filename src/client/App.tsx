@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { useChat } from "./hooks/useChat.ts";
+import { useThreads } from "./hooks/useThreads.ts";
+import { Sidebar } from "./components/Sidebar.tsx";
 import { ChatPage } from "./pages/ChatPage.tsx";
 import { DataPage } from "./pages/DataPage.tsx";
 
@@ -9,8 +11,10 @@ function subscribe(onChange: () => void) {
 }
 
 export function App() {
+  const { threads, active, activeId, select, append, create, remove } = useThreads();
+
   // Owned here so a running answer survives a trip to the data page.
-  const chat = useChat();
+  const chat = useChat({ threadId: active.id, threads, append });
 
   // "#/data/ITCH/FY2025" → page "data", ticker "ITCH", anchor "FY2025".
   const hash = useSyncExternalStore(subscribe, () => window.location.hash);
@@ -18,20 +22,23 @@ export function App() {
   const onDataPage = page === "data";
 
   return (
-    <div className="app">
-      <header>
-        <h1>Rogo Research</h1>
-        <nav>
-          <a href="#/" className={onDataPage ? "" : "active"}>
-            Chat
-          </a>
-          <a href="#/data" className={onDataPage ? "active" : ""}>
-            Data
-          </a>
-        </nav>
-      </header>
+    <div className="shell">
+      <Sidebar
+        threads={threads}
+        activeId={activeId}
+        onDataPage={onDataPage}
+        onSelect={select}
+        onCreate={create}
+        onDelete={remove}
+      />
 
-      {onDataPage ? <DataPage ticker={ticker} anchor={anchor} /> : <ChatPage chat={chat} />}
+      <div className="app">
+        {onDataPage ? (
+          <DataPage ticker={ticker} anchor={anchor} />
+        ) : (
+          <ChatPage key={active.id} chat={chat} />
+        )}
+      </div>
     </div>
   );
 }

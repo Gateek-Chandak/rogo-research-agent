@@ -5,7 +5,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { executeTool, toolSchemas } from "../tools/index.ts";
 import { SYSTEM_PROMPT } from "./prompts.ts";
-import type { AgentEvent, ChatTurn } from "../../shared/types.ts";
+import type { AgentEvent, ChatTurn } from "../../shared/chat.ts";
 
 const MODEL = process.env.ROGO_MODEL ?? "claude-sonnet-5";
 const MAX_ITERATIONS = 12;

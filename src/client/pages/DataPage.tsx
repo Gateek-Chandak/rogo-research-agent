@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import type { CompanyDetail } from "../../shared/types/research.ts";
+import type { CompanyDetail } from "../../shared/research.ts";
 
 const money = (n: number | null) =>
   n === null ? "Not filed" : n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 const pct = (n: number | null) => (n === null ? "—" : `${(n * 100).toFixed(1)}%`);
 
-// Row and document ids (FY2025, DOC-ACME-001) are what the agent's citation links point to.
+// Row and document ids (FY2025, FY2025-Q4, DOC-ACME-001) are what the agent's citation links point to.
 function CompanyData({ detail }: { detail: CompanyDetail }) {
   const { company, financials, documents } = detail;
   const notes = [
@@ -79,7 +79,7 @@ function CompanyData({ detail }: { detail: CompanyDetail }) {
               </thead>
               <tbody>
                 {financials.quarterly.map((quarter) => (
-                  <tr key={quarter.period}>
+                  <tr key={quarter.period} id={quarter.period.replace(" ", "-")}>
                     <td>{quarter.period}</td>
                     <td align="right">{money(quarter.revenue)}</td>
                     <td align="right">{pct(quarter.grossMargin)}</td>

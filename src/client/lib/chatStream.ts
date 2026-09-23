@@ -1,6 +1,6 @@
 /** Reads the SSE body of POST /api/chat and yields typed events. */
 
-import type { ChatTurn, StreamEvent } from "../../shared/types.ts";
+import type { ChatTurn, StreamEvent } from "../../shared/chat.ts";
 
 interface StreamChatOptions {
   message: string;

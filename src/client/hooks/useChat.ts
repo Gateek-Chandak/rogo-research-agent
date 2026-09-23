@@ -1,25 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { streamChat } from "../lib/chatStream.ts";
-import type { AgentEvent, ChatTurn } from "../../shared/types.ts";
+import type { Message, Run, Thread } from "../types.ts";
+import type { AgentEvent, ChatTurn } from "../../shared/chat.ts";
 
-export interface Message extends ChatTurn {
-  at: number;
-  tools?: ToolActivity[];
-  stopped?: boolean;
+interface ChatOptions {
+  threadId: string;
+  threads: Thread[];
+  append: (threadId: string, message: Message) => void;
 }
 
-export interface ToolActivity {
-  id: string;
-  name: string;
-  status: "running" | "done" | "failed";
-  ms?: number;
+/** How a question ended: an answer, a failure to report, or a cancellation. */
+interface Outcome {
+  run: Run;
+  failure: string | null;
+  stopped: boolean;
 }
 
-/** Null when nothing is running. */
-export interface Run {
-  answer: string;
-  tools: ToolActivity[];
-}
+const EMPTY_RUN: Run = { answer: "", tools: [] };
 
 const DROPPED =
   "The connection to the research server dropped. Your question is still in the box — send it again.";
@@ -52,87 +49,126 @@ function applyEvent(run: Run, event: AgentEvent): Run {
   }
 }
 
-export function useChat() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [run, setRun] = useState<Run | null>(null);
-  const [queue, setQueue] = useState<string[]>([]);
-  const abortRef = useRef<AbortController | null>(null);
+async function research(
+  question: string,
+  history: ChatTurn[],
+  signal: AbortSignal,
+  onProgress: (run: Run) => void,
+): Promise<Outcome> {
+  let run = EMPTY_RUN;
 
-  // Read inside start() so a queued question sees the turns before it.
-  const messagesRef = useRef(messages);
-  messagesRef.current = messages;
+  try {
+    for await (const event of streamChat({ message: question, history, signal })) {
+      if (event.type === "error") return { run, failure: event.message, stopped: false };
+      if (event.type === "done") {
+        return { run: { ...run, answer: event.answer }, failure: null, stopped: false };
+      }
+      run = applyEvent(run, event);
+      onProgress(run);
+    }
+  } catch {
+    if (signal.aborted) return { run, failure: null, stopped: true };
+    return { run, failure: DROPPED, stopped: false };
+  }
 
-  const start = useCallback(async (question: string) => {
-    const history = messagesRef.current.map(({ role, text }) => ({ role, text }));
-    setMessages((prev) => [...prev, { role: "user", text: question, at: Date.now() }]);
+  return { run, failure: null, stopped: false };
+}
+
+function historyOf(threads: Thread[], threadId: string): ChatTurn[] {
+  const thread = threads.find((t) => t.id === threadId);
+  return thread?.messages.map(({ role, text }) => ({ role, text })) ?? [];
+}
+
+function without<T>(map: Record<string, T>, key: string): Record<string, T> {
+  const { [key]: _removed, ...rest } = map;
+  return rest;
+}
+
+export type Chat = ReturnType<typeof useChat>;
+
+/** Every thread runs and queues on its own; nothing here is shared between them. */
+export function useChat({ threadId, threads, append }: ChatOptions) {
+  const [runs, setRuns] = useState<Record<string, Run>>({});
+  const [queues, setQueues] = useState<Record<string, string[]>>({});
+  const controllers = useRef(new Map<string, AbortController>());
+
+  // Read inside start() so a queued question sees the turns before it, and so
+  // a run keeps writing to its own thread when the reader moves away.
+  const latest = useRef({ threadId, threads, append });
+  latest.current = { threadId, threads, append };
+
+  const start = useCallback(async (id: string, question: string) => {
+    const { threads: all, append: add } = latest.current;
+    const history = historyOf(all, id);
+
+    add(id, { role: "user", text: question, at: Date.now() });
 
     const controller = new AbortController();
-    abortRef.current = controller;
+    controllers.current.set(id, controller);
+    setRuns((prev) => ({ ...prev, [id]: EMPTY_RUN }));
 
-    let state: Run = { answer: "", tools: [] };
-    let failure: string | null = null;
-    let stopped = false;
-    setRun(state);
+    const { run, failure, stopped } = await research(
+      question,
+      history,
+      controller.signal,
+      (progress) => setRuns((prev) => ({ ...prev, [id]: progress })),
+    );
 
-    try {
-      for await (const event of streamChat({
-        message: question,
-        history,
-        signal: controller.signal,
-      })) {
-        if (event.type === "error") {
-          failure = event.message;
-          break;
-        }
-        if (event.type === "done") {
-          state = { ...state, answer: event.answer };
-          break;
-        }
-        state = applyEvent(state, event);
-        setRun(state);
-      }
-    } catch {
-      stopped = controller.signal.aborted;
-      if (!stopped) failure = DROPPED;
-    }
+    add(id, {
+      role: "assistant",
+      text: failure ?? run.answer.trim(),
+      at: Date.now(),
+      tools: run.tools,
+      stopped,
+    });
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        text: failure ?? state.answer.trim(),
-        at: Date.now(),
-        tools: state.tools,
-        stopped,
-      },
-    ]);
-    abortRef.current = null;
-    setRun(null);
+    controllers.current.delete(id);
+    setRuns((prev) => without(prev, id));
   }, []);
 
   const send = useCallback(
     (question: string) => {
       const text = question.trim();
       if (!text) return;
-      if (abortRef.current) setQueue((prev) => [...prev, text]);
-      else start(text);
+
+      const { threadId: id } = latest.current;
+      if (controllers.current.has(id)) {
+        setQueues((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), text] }));
+      } else {
+        start(id, text);
+      }
     },
     [start],
   );
 
-  const unqueue = useCallback(
-    (index: number) => setQueue((prev) => prev.filter((_, i) => i !== index)),
+  const stop = useCallback(
+    () => controllers.current.get(latest.current.threadId)?.abort(),
     [],
   );
 
-  const stop = useCallback(() => abortRef.current?.abort(), []);
+  const unqueue = useCallback((index: number) => {
+    const { threadId: id } = latest.current;
+    setQueues((prev) => ({
+      ...prev,
+      [id]: (prev[id] ?? []).filter((_, i) => i !== index),
+    }));
+  }, []);
 
+  // Drain every thread's queue, not just the one being viewed.
   useEffect(() => {
-    if (run || !queue.length) return;
-    const [next, ...rest] = queue;
-    setQueue(rest);
-    start(next);
-  }, [run, queue, start]);
+    for (const [id, pending] of Object.entries(queues)) {
+      if (!pending.length || controllers.current.has(id)) continue;
+      setQueues((prev) => ({ ...prev, [id]: pending.slice(1) }));
+      start(id, pending[0]);
+    }
+  }, [runs, queues, start]);
 
-  return { messages, run, queue, send, stop, unqueue };
+  return {
+    messages: threads.find((t) => t.id === threadId)?.messages ?? [],
+    run: runs[threadId] ?? null,
+    queue: queues[threadId] ?? [],
+    send,
+    stop,
+    unqueue,
+  };
 }

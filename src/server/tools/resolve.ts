@@ -1,5 +1,5 @@
 import { companies } from "../data.ts";
-import type { Company } from "../../shared/types/research.ts";
+import type { Company } from "../../shared/research.ts";
 
 /** Thrown when a tool cannot service a request. The message is shown to the model. */
 export class ToolError extends Error {}

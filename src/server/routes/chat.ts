@@ -7,7 +7,7 @@ import {
   type ChatRequest,
   type ChatTurn,
   type StreamEvent,
-} from "../../shared/types.ts";
+} from "../../shared/chat.ts";
 
 export const chatRouter = Router();
 
