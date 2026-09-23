@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { useChat, type Run, type ToolActivity } from "./hooks/useChat.ts";
+import {
+  useChat,
+  type Message,
+  type Run,
+  type ToolActivity,
+} from "./hooks/useChat.ts";
 import { Markdown } from "./components/Markdown.tsx";
 
 const clock = new Intl.DateTimeFormat(undefined, {
@@ -40,6 +45,23 @@ function ToolSummary({ tools }: { tools: ToolActivity[] }) {
   );
 }
 
+function Turn({ message }: { message: Message }) {
+  return (
+    <div className={`turn ${message.role}`}>
+      <div className={`bubble ${message.role}`}>
+        {message.tools?.length ? <ToolSummary tools={message.tools} /> : null}
+        {message.role === "assistant" ? (
+          <Markdown>{message.text}</Markdown>
+        ) : (
+          message.text
+        )}
+        {message.stopped && <span className="stopped">Stopped</span>}
+      </div>
+      <time className="stamp">{clock.format(message.at)}</time>
+    </div>
+  );
+}
+
 function ActiveRun({ run }: { run: Run }) {
   return (
     <div className="bubble assistant">
@@ -54,7 +76,7 @@ function ActiveRun({ run }: { run: Run }) {
 }
 
 export function App() {
-  const { messages, run, send, stop } = useChat();
+  const { messages, run, queue, send, stop, unqueue } = useChat();
   const [input, setInput] = useState("");
   const transcriptRef = useRef<HTMLDivElement>(null);
 
@@ -91,24 +113,24 @@ export function App() {
         )}
 
         {messages.map((message, i) => (
-          <div key={i} className={`turn ${message.role}`}>
-            <div className={`bubble ${message.role}`}>
-              {message.tools && message.tools.length > 0 && (
-                <ToolSummary tools={message.tools} />
-              )}
-              {message.role === "assistant" ? (
-                <Markdown>{message.text}</Markdown>
-              ) : (
-                message.text
-              )}
-              {message.stopped && <span className="stopped">Stopped</span>}
-            </div>
-            <time className="stamp">{clock.format(message.at)}</time>
-          </div>
+          <Turn key={i} message={message} />
         ))}
 
         {run && <ActiveRun run={run} />}
       </div>
+
+      {queue.length > 0 && (
+        <ul className="queue">
+          {queue.map((question, i) => (
+            <li key={i}>
+              <span>{question}</span>
+              <button onClick={() => unqueue(i)} aria-label="Remove from queue">
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <form
         className="composer"
@@ -120,7 +142,7 @@ export function App() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a research question…"
+          placeholder={run ? "Queue another question…" : "Ask a research question…"}
         />
         {run ? (
           <button type="button" onClick={stop}>
