@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { streamChat } from "../lib/chatStream.ts";
+import { streamChat } from "../api/chat.ts";
 import type { Message, Run, Thread } from "../types.ts";
 import type { AgentEvent, ChatTurn } from "../../shared/chat.ts";
 

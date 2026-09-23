@@ -16,17 +16,10 @@ export type AgentEvent =
   | { type: "text_delta"; text: string }
   | { type: "tool_start"; id: string; name: string; input: unknown }
   | { type: "tool_end"; id: string; name: string; ms: number }
-  | { type: "tool_failed"; id: string; name: string; ms: number; message: string }
-  | { type: "notice"; text: string };
+  | { type: "tool_failed"; id: string; name: string; ms: number; message: string };
 
-/** Exactly one of these ends every stream. */
-export type StreamEnd =
-  | { type: "done"; answer: string; iterations: number; ms: number }
+/** Agent events, then exactly one "done" or "error" to end the stream. */
+export type StreamEvent =
+  | AgentEvent
+  | { type: "done"; answer: string }
   | { type: "error"; message: string };
-
-export type StreamEvent = AgentEvent | StreamEnd;
-
-
-export function isStreamEnd(event: StreamEvent): event is StreamEnd {
-  return event.type === "done" || event.type === "error";
-}

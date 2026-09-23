@@ -3,7 +3,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { executeTool, toolSchemas } from "../tools/index.ts";
+import { executeTool, toolSchemas } from "../tools.ts";
 import { SYSTEM_PROMPT } from "./prompts.ts";
 import type { AgentEvent, ChatTurn } from "../../shared/chat.ts";
 
@@ -98,6 +98,10 @@ export async function runAgent({
 
     if (toolUses.length === 0) {
       answer = textOf(response);
+      // Otherwise a capped answer just stops mid-sentence with no explanation.
+      if (response.stop_reason === "max_tokens") {
+        answer += "\n\n_Cut off at the length limit. Ask for a narrower slice to see the rest._";
+      }
       break;
     }
 
@@ -108,7 +112,6 @@ export async function runAgent({
   }
 
   if (!answer) {
-    onEvent({ type: "notice", text: "Ran out of research steps." });
     answer =
       "I looked at a number of sources but ran out of research steps before I could pull the answer together. Try asking a narrower question.";
   }

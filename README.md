@@ -58,25 +58,17 @@ Some questions to start with:
 
 ## The code
 
-The tree splits by runtime — `server/` is Node, `client/` is the browser, and
-`shared/` holds the contracts both sides import.
-
 ```
 src/
-  server/
-    index.ts          Express bootstrap
-    logger.ts         Renders agent events to the terminal
-    routes/chat.ts    POST /api/chat
-    agent/            The agent loop, its prompts and its types
-    tools/            Tool schemas, handlers and the name→handler registry
-    data/             All the research data. Fictional, local, deterministic
-  client/             The chat interface
-  shared/             Types that cross the wire
+  server/     agent loop, tools, research data, Express routes
+  client/     chat UI and the data page
+  shared/     types both sides use
+quality/      evals (npm run eval) and benchmarks (npm run bench)
 ```
 
 `vite.config.ts` proxies `/api` to port 8787.
 
-There are five fictional companies. The tools are backed entirely by `src/server/data/` —
+There are five fictional companies. The tools are backed entirely by `src/server/data.ts` —
 no network calls, no credentials beyond the model key, nothing to set up. Each tool
 sleeps for a few hundred milliseconds to stand in for a real API.
 
@@ -89,6 +81,8 @@ sleeps for a few hundred milliseconds to stand in for a real API.
 | `npm run dev:web` | Web UI only, on port 5173 |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Runs Vitest |
+| `npm run eval` | Checks the agent's answers on key analyst questions |
+| `npm run bench` | Times each question against `quality/benchmarks/baseline.json` |
 
 The model defaults to `claude-sonnet-5`. Set `ROGO_MODEL` in `.env` to change it.
 

@@ -25,9 +25,6 @@ function logAgentEvent(event: AgentEvent): void {
     case "tool_failed":
       console.log(`[tool]  ! ${event.name}: ${event.message}`);
       break;
-    case "notice":
-      console.log(`[agent] ${event.text}`);
-      break;
   }
 }
 
@@ -85,7 +82,7 @@ chatRouter.post("/", async (req, res) => {
     });
 
     console.log(`[chat] done in ${result.ms}ms over ${result.iterations} iterations`);
-    send({ type: "done", ...result });
+    send({ type: "done", answer: result.answer });
   } catch (err) {
     if (controller.signal.aborted) {
       console.log("[chat] cancelled by client");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveCompany } from "./resolve.ts";
+import { resolveCompany } from "./tools.ts";
 
 const resolves = (input: string, expected: string) =>
   it(`resolves "${input}"`, () =>

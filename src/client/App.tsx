@@ -1,9 +1,9 @@
 import { useSyncExternalStore } from "react";
 import { useChat } from "./hooks/useChat.ts";
 import { useThreads } from "./hooks/useThreads.ts";
-import { Sidebar } from "./components/Sidebar.tsx";
 import { ChatPage } from "./pages/ChatPage.tsx";
 import { DataPage } from "./pages/DataPage.tsx";
+import { Sidebar } from "./components/Sidebar.tsx";
 
 function subscribe(onChange: () => void) {
   window.addEventListener("hashchange", onChange);
