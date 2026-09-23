@@ -8,6 +8,7 @@
 import type {
   AnnualFigures,
   Company,
+  CompanyDetail,
   FinancialRecord,
   QuarterlyFigures,
   ResearchDocument,
@@ -303,3 +304,9 @@ export const documents: ResearchDocument[] = [
     body: "A substantial portion of our historical revenue growth has been attributable to acquisitions rather than organic expansion. In FY2025, acquisitions contributed approximately 6.5 percentage points of the 9.6% consolidated revenue growth. Our ability to sustain growth depends on identifying suitable clinic groups at acceptable valuations and integrating them without disruption to patient volumes. We are also exposed to changes in government reimbursement rates, which represented approximately 41% of Clinic Operations revenue in FY2025.",
   },
 ];
+
+export const companyDetails: CompanyDetail[] = companies.map((company) => ({
+  company,
+  financials: financials.find((f) => f.ticker === company.ticker) ?? null,
+  documents: documents.filter((d) => d.company === company.name),
+}));

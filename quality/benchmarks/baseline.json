@@ -1,0 +1,30 @@
+{
+  "Single figure": {
+    "seconds": 4.9,
+    "firstTokenSeconds": 3.2,
+    "toolCalls": 1,
+    "repeatedCalls": 0,
+    "turns": 2
+  },
+  "Two-company comparison": {
+    "seconds": 5.9,
+    "firstTokenSeconds": 3.3,
+    "toolCalls": 2,
+    "repeatedCalls": 0,
+    "turns": 2
+  },
+  "Document question": {
+    "seconds": 13.9,
+    "firstTokenSeconds": 9.1,
+    "toolCalls": 6,
+    "repeatedCalls": 0,
+    "turns": 4
+  },
+  "Whole universe": {
+    "seconds": 8.6,
+    "firstTokenSeconds": 4.7,
+    "toolCalls": 5,
+    "repeatedCalls": 0,
+    "turns": 2
+  }
+}

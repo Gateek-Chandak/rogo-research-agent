@@ -59,3 +59,17 @@ export interface CompanyDetail {
   financials: FinancialRecord | null;
   documents: ResearchDocument[];
 }
+
+// Ids on the data page. Citation links (#/data/TICKER/ID) point to them.
+export const yearId = (year: AnnualFigures) => `FY${year.fiscalYear}`;
+export const quarterId = (quarter: QuarterlyFigures) => quarter.period.replace(" ", "-");
+
+/** Every link the data page can open for a company. */
+export function dataLinks({ company, financials, documents }: CompanyDetail): string[] {
+  const ids = [
+    ...(financials?.annual.map(yearId) ?? []),
+    ...(financials?.quarterly.map(quarterId) ?? []),
+    ...documents.map((doc) => doc.id),
+  ];
+  return [`#/data/${company.ticker}`, ...ids.map((id) => `#/data/${company.ticker}/${id}`)];
+}

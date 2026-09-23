@@ -7,7 +7,9 @@
     "dev:server": "tsx watch src/server/index.ts",
     "dev:web": "vite",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval": "tsx quality/evals/run.ts",
+    "bench": "tsx quality/benchmarks/run.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
