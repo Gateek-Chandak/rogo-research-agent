@@ -5,59 +5,13 @@
  * Figures are in USD millions unless stated otherwise. Fiscal years end Dec 31.
  */
 
-export interface Company {
-  name: string;
-  ticker: string;
-  sector: string;
-  hq: string;
-  founded: number;
-  employees: number;
-  description: string;
-  segments: { name: string; shareOfRevenue: number }[];
-  filings: { id: string; form: string; period: string; filedOn: string }[];
-}
-
-export interface AnnualFigures {
-  fiscalYear: number;
-  revenue: number | null;
-  grossMargin: number | null;
-  operatingIncome: number | null;
-  netIncome: number | null;
-  freeCashFlow: number | null;
-}
-
-export interface QuarterlyFigures {
-  period: string;
-  revenue: number;
-  grossMargin: number;
-  operatingIncome: number;
-}
-
-export interface FinancialRecord {
-  company: string;
-  ticker: string;
-  currency: string;
-  unit: string;
-  annual: AnnualFigures[];
-  quarterly: QuarterlyFigures[];
-  provenance: {
-    source: string;
-    ingestedAt: string;
-    pipelineVersion: string;
-    checksum: string;
-    restatements: { period: string; note: string }[];
-  };
-  warnings?: string[];
-}
-
-export interface ResearchDocument {
-  id: string;
-  company: string;
-  form: string;
-  title: string;
-  date: string;
-  body: string;
-}
+import type {
+  AnnualFigures,
+  Company,
+  FinancialRecord,
+  QuarterlyFigures,
+  ResearchDocument,
+} from "../shared/types/research.ts";
 
 export const companies: Company[] = [
   {

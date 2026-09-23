@@ -1,15 +1,15 @@
 /** POST /api/chat — streams one agent run as Server-Sent Events. */
 
 import { Router, type Response } from "express";
-import { runAgent } from "./agent/agent.ts";
+import { runAgent } from "../agent/agent.ts";
 import {
   type AgentEvent,
   type ChatRequest,
   type ChatTurn,
   type StreamEvent,
-} from "../shared/types.ts";
+} from "../../shared/types.ts";
 
-export const apiRouter = Router();
+export const chatRouter = Router();
 
 function logAgentEvent(event: AgentEvent): void {
   switch (event.type) {
@@ -59,7 +59,7 @@ function openStream(res: Response): (event: StreamEvent) => void {
   return (event) => res.write(`data: ${JSON.stringify(event)}\n\n`);
 }
 
-apiRouter.post("/chat", async (req, res) => {
+chatRouter.post("/", async (req, res) => {
   const parsed = parseRequest(req.body);
 
   if (!parsed) {

@@ -1,157 +1,37 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  useChat,
-  type Message,
-  type Run,
-  type ToolActivity,
-} from "./hooks/useChat.ts";
-import { Markdown } from "./components/Markdown.tsx";
+import { useSyncExternalStore } from "react";
+import { useChat } from "./hooks/useChat.ts";
+import { ChatPage } from "./pages/ChatPage.tsx";
+import { DataPage } from "./pages/DataPage.tsx";
 
-const clock = new Intl.DateTimeFormat(undefined, {
-  hour: "numeric",
-  minute: "2-digit",
-});
-
-const EXAMPLES = [
-  "Compare Acme and Globex and tell me which one appears to be growing faster.",
-  "What are the biggest risks Umbrella Health flags in its filings?",
-  "How is Initech's subscription transition going?",
-  "Which company in the universe is growing fastest?",
-];
-
-function ToolTrail({ tools }: { tools: ToolActivity[] }) {
-  return (
-    <div className="tools">
-      {tools.map((tool) => (
-        <div key={tool.id} className={`tool ${tool.status}`}>
-          {tool.name}
-          {tool.ms !== undefined && <span> · {tool.ms}ms</span>}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ToolSummary({ tools }: { tools: ToolActivity[] }) {
-  const elapsed = tools.reduce((total, tool) => total + (tool.ms ?? 0), 0);
-  return (
-    <details className="trail">
-      <summary>
-        {tools.length} {tools.length === 1 ? "lookup" : "lookups"} ·{" "}
-        {(elapsed / 1000).toFixed(1)}s
-      </summary>
-      <ToolTrail tools={tools} />
-    </details>
-  );
-}
-
-function Turn({ message }: { message: Message }) {
-  return (
-    <div className={`turn ${message.role}`}>
-      <div className={`bubble ${message.role}`}>
-        {message.tools?.length ? <ToolSummary tools={message.tools} /> : null}
-        {message.role === "assistant" ? (
-          <Markdown>{message.text}</Markdown>
-        ) : (
-          message.text
-        )}
-        {message.stopped && <span className="stopped">Stopped</span>}
-      </div>
-      <time className="stamp">{clock.format(message.at)}</time>
-    </div>
-  );
-}
-
-function ActiveRun({ run }: { run: Run }) {
-  return (
-    <div className="bubble assistant">
-      <ToolTrail tools={run.tools} />
-      {run.answer ? (
-        <Markdown>{run.answer}</Markdown>
-      ) : (
-        <span className="pending">Researching…</span>
-      )}
-    </div>
-  );
+function subscribe(onChange: () => void) {
+  window.addEventListener("hashchange", onChange);
+  return () => window.removeEventListener("hashchange", onChange);
 }
 
 export function App() {
-  const { messages, run, queue, send, stop, unqueue } = useChat();
-  const [input, setInput] = useState("");
-  const transcriptRef = useRef<HTMLDivElement>(null);
+  // Owned here so a running answer survives a trip to the data page.
+  const chat = useChat();
 
-  // Follow new output, unless the reader has scrolled up to re-read something.
-  useEffect(() => {
-    const el = transcriptRef.current;
-    if (!el) return;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 140) {
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [messages, run]);
-
-  function submit(question: string) {
-    setInput("");
-    send(question);
-  }
+  // "#/data/ITCH/FY2025" → page "data", ticker "ITCH", anchor "FY2025".
+  const hash = useSyncExternalStore(subscribe, () => window.location.hash);
+  const [, page, ticker, anchor] = hash.split("/");
+  const onDataPage = page === "data";
 
   return (
     <div className="app">
       <header>
         <h1>Rogo Research</h1>
-        <p>Ask a question about a company in our coverage universe.</p>
+        <nav>
+          <a href="#/" className={onDataPage ? "" : "active"}>
+            Chat
+          </a>
+          <a href="#/data" className={onDataPage ? "active" : ""}>
+            Data
+          </a>
+        </nav>
       </header>
 
-      <div className="transcript" ref={transcriptRef}>
-        {messages.length === 0 && !run && (
-          <div className="examples">
-            {EXAMPLES.map((example) => (
-              <button key={example} onClick={() => submit(example)}>
-                {example}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {messages.map((message, i) => (
-          <Turn key={i} message={message} />
-        ))}
-
-        {run && <ActiveRun run={run} />}
-      </div>
-
-      {queue.length > 0 && (
-        <ul className="queue">
-          {queue.map((question, i) => (
-            <li key={i}>
-              <span>{question}</span>
-              <button onClick={() => unqueue(i)} aria-label="Remove from queue">
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <form
-        className="composer"
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit(input);
-        }}
-      >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={run ? "Queue another question…" : "Ask a research question…"}
-        />
-        {run ? (
-          <button type="button" onClick={stop}>
-            Stop
-          </button>
-        ) : (
-          <button type="submit">Send</button>
-        )}
-      </form>
+      {onDataPage ? <DataPage ticker={ticker} anchor={anchor} /> : <ChatPage chat={chat} />}
     </div>
   );
 }

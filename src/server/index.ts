@@ -2,7 +2,8 @@
 
 import "dotenv/config";
 import express from "express";
-import { apiRouter } from "./routes.ts";
+import { chatRouter } from "./routes/chat.ts";
+import { companiesRouter } from "./routes/companies.ts";
 
 if (!process.env.ANTHROPIC_API_KEY) {
   console.error(
@@ -13,7 +14,8 @@ if (!process.env.ANTHROPIC_API_KEY) {
 
 const app = express();
 app.use(express.json());
-app.use("/api", apiRouter);
+app.use("/api/chat", chatRouter);
+app.use("/api/companies", companiesRouter);
 
 const port = Number(process.env.PORT ?? 8787);
 app.listen(port, () => {
