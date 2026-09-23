@@ -68,11 +68,12 @@ header p {
   font-size: 14px;
   line-height: 1.55;
   white-space: pre-wrap;
-  max-width: 88%;
+  max-width: 100%;
 }
 
 .bubble.user {
   align-self: flex-end;
+  max-width: 88%;
   background: #12181f;
   color: #fff;
 }
@@ -119,4 +120,154 @@ header p {
 .composer input:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+.tool {
+  font-size: 12px;
+  color: #62707f;
+  padding: 2px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.tool.running::before {
+  content: "◌ ";
+}
+
+.tool.done::before {
+  content: "✓ ";
+  color: #2f855a;
+}
+
+.tool.failed::before {
+  content: "✕ ";
+  color: #c53030;
+}
+
+.stopped {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8b97a3;
+}
+
+.stopped::before {
+  content: "■ ";
+  font-size: 9px;
+  vertical-align: 1px;
+}
+
+.markdown {
+  white-space: normal;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown p,
+.markdown ul,
+.markdown ol,
+.markdown blockquote {
+  margin: 0 0 10px;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  margin: 16px 0 8px;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.markdown ul,
+.markdown ol {
+  padding-left: 20px;
+}
+
+.markdown li {
+  margin: 3px 0;
+}
+
+.markdown li > ul,
+.markdown li > ol {
+  margin: 3px 0;
+}
+
+.markdown a {
+  color: #1a56a8;
+}
+
+.markdown code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  background: #f1f3f6;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.markdown pre {
+  background: #f1f3f6;
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  margin: 0 0 10px;
+}
+
+.markdown pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown blockquote {
+  border-left: 3px solid #dde2e8;
+  padding-left: 12px;
+  color: #4b5b6b;
+}
+
+.markdown hr {
+  border: none;
+  border-top: 1px solid #e4e8ed;
+  margin: 14px 0;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  margin: 0 0 10px;
+}
+
+.markdown table {
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+}
+
+.markdown th,
+.markdown td {
+  border-bottom: 1px solid #e4e8ed;
+  padding: 7px 12px 7px 0;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.markdown th[align="right"],
+.markdown td[align="right"] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.markdown th {
+  font-weight: 600;
+  color: #62707f;
+  border-bottom-color: #cfd6dd;
+}
+
+.markdown tbody tr:last-child td {
+  border-bottom: none;
 }

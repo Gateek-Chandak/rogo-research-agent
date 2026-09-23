@@ -1,9 +1,6 @@
 import { useState } from "react";
-
-interface Message {
-  role: "user" | "assistant";
-  text: string;
-}
+import { useChat, type Run } from "./hooks/useChat.ts";
+import { Markdown } from "./components/Markdown.tsx";
 
 const EXAMPLES = [
   "Compare Acme and Globex and tell me which one appears to be growing faster.",
@@ -12,37 +9,31 @@ const EXAMPLES = [
   "Which company in the universe is growing fastest?",
 ];
 
+function ActiveRun({ run }: { run: Run }) {
+  return (
+    <div className="bubble assistant">
+      {run.tools.map((tool) => (
+        <div key={tool.id} className={`tool ${tool.status}`}>
+          {tool.name}
+          {tool.ms !== undefined && <span> · {tool.ms}ms</span>}
+        </div>
+      ))}
+      {run.answer ? (
+        <Markdown>{run.answer}</Markdown>
+      ) : (
+        <span className="pending">Researching…</span>
+      )}
+    </div>
+  );
+}
+
 export function App() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { messages, run, send, stop } = useChat();
   const [input, setInput] = useState("");
-  const [busy, setBusy] = useState(false);
 
-  async function send(question: string) {
-    if (!question.trim() || busy) return;
-
-    setMessages((prev) => [...prev, { role: "user", text: question }]);
+  function submit(question: string) {
     setInput("");
-    setBusy(true);
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: question }),
-      });
-      const data = await res.json();
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: data.answer ?? data.error },
-      ]);
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: `Something went wrong: ${String(err)}` },
-      ]);
-    }
-
-    setBusy(false);
+    send(question);
   }
 
   return (
@@ -53,10 +44,10 @@ export function App() {
       </header>
 
       <div className="transcript">
-        {messages.length === 0 && (
+        {messages.length === 0 && !run && (
           <div className="examples">
             {EXAMPLES.map((example) => (
-              <button key={example} onClick={() => send(example)}>
+              <button key={example} onClick={() => submit(example)}>
                 {example}
               </button>
             ))}
@@ -65,29 +56,37 @@ export function App() {
 
         {messages.map((message, i) => (
           <div key={i} className={`bubble ${message.role}`}>
-            {message.text}
+            {message.role === "assistant" ? (
+              <Markdown>{message.text}</Markdown>
+            ) : (
+              message.text
+            )}
+            {message.stopped && <span className="stopped">Stopped</span>}
           </div>
         ))}
 
-        {busy && <div className="bubble assistant pending">Thinking…</div>}
+        {run && <ActiveRun run={run} />}
       </div>
 
       <form
         className="composer"
         onSubmit={(e) => {
           e.preventDefault();
-          send(input);
+          submit(input);
         }}
       >
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask a research question…"
-          disabled={busy}
         />
-        <button type="submit" disabled={busy}>
-          Send
-        </button>
+        {run ? (
+          <button type="button" onClick={stop}>
+            Stop
+          </button>
+        ) : (
+          <button type="submit">Send</button>
+        )}
       </form>
     </div>
   );
