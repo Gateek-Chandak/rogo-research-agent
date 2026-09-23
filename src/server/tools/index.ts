@@ -5,17 +5,16 @@
  */
 
 import { companies, documents, financials } from "../data.ts";
+import { resolveCompany, ToolError } from "./resolve.ts";
 
 export { toolSchemas } from "./schemas.ts";
-
-/** Thrown when a tool cannot service a request. */
-export class ToolError extends Error {}
+export { ToolError } from "./resolve.ts";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function searchCompanies(query: string) {
   await sleep(250);
-  const needle = String(query).toLowerCase();
+  const needle = query.toLowerCase();
   const matches = companies.filter((c) => c.name.toLowerCase().includes(needle));
   return matches.map((c) => ({
     name: c.name,
@@ -26,26 +25,21 @@ async function searchCompanies(query: string) {
 
 async function getCompanyProfile(company: string) {
   await sleep(450);
-  const match = companies.find((c) => c.name === company);
-  if (!match) {
-    throw new ToolError(`no profile found for "${company}"`);
-  }
-  return match;
+  return resolveCompany(company);
 }
 
 async function getFinancials(company: string) {
   await sleep(800);
-  const record = financials.find((f) => f.company === company);
-  if (!record) {
-    throw new ToolError(`no financials found for "${company}"`);
-  }
+  const match = resolveCompany(company);
+  const record = financials.find((f) => f.company === match.name);
+  if (!record) throw new ToolError(`No financials are held for ${match.name}.`);
   return record;
 }
 
 async function searchDocuments(query: string, company?: string) {
   await sleep(700);
 
-  const terms = String(query).trim().split(/\s+/).filter(Boolean);
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   // The upstream document index rejects long queries.
   if (terms.length > 6) {
     throw new ToolError(
@@ -53,15 +47,14 @@ async function searchDocuments(query: string, company?: string) {
     );
   }
 
-  const pool = company
-    ? documents.filter((d) => d.company === company)
-    : documents;
+  const scoped = company ? resolveCompany(company) : null;
+  const pool = scoped ? documents.filter((d) => d.company === scoped.name) : documents;
 
   const scored = pool.map((doc) => {
     const haystack = `${doc.title} ${doc.body}`.toLowerCase();
     let score = 0;
     for (const term of terms) {
-      if (haystack.includes(term.toLowerCase())) score += 1;
+      if (haystack.includes(term)) score += 1;
     }
     return { doc, score };
   });

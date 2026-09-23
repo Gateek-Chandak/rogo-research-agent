@@ -26,7 +26,6 @@ export type StreamEnd =
 
 export type StreamEvent = AgentEvent | StreamEnd;
 
-export const MAX_HISTORY_TURNS = 20;
 
 export function isStreamEnd(event: StreamEvent): event is StreamEnd {
   return event.type === "done" || event.type === "error";

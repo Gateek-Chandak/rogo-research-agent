@@ -5,15 +5,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { executeTool, toolSchemas } from "../tools/index.ts";
 import { SYSTEM_PROMPT } from "./prompts.ts";
-import {
-  MAX_HISTORY_TURNS,
-  type AgentEvent,
-  type ChatTurn,
-} from "../../shared/types.ts";
+import type { AgentEvent, ChatTurn } from "../../shared/types.ts";
 
 const MODEL = process.env.ROGO_MODEL ?? "claude-sonnet-5";
 const MAX_ITERATIONS = 12;
 const MAX_TOKENS = 16000;
+const MAX_HISTORY_TURNS = 20;
 
 const client = new Anthropic();
 
@@ -28,6 +25,25 @@ export interface AgentResult {
   answer: string;
   iterations: number;
   ms: number;
+}
+
+async function runTool(
+  use: Anthropic.ToolUseBlock,
+  onEvent: (event: AgentEvent) => void,
+): Promise<Anthropic.ToolResultBlockParam> {
+  const { id, name } = use;
+  const startedAt = Date.now();
+  onEvent({ type: "tool_start", id, name, input: use.input });
+
+  try {
+    const output = await executeTool(name, use.input as Record<string, unknown>);
+    onEvent({ type: "tool_end", id, name, ms: Date.now() - startedAt });
+    return { type: "tool_result", tool_use_id: id, content: JSON.stringify(output) };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    onEvent({ type: "tool_failed", id, name, ms: Date.now() - startedAt, message });
+    return { type: "tool_result", tool_use_id: id, content: message, is_error: true };
+  }
 }
 
 function textOf(message: Anthropic.Message): string {
@@ -85,36 +101,8 @@ export async function runAgent({
       break;
     }
 
-    const toolResults: Anthropic.ToolResultBlockParam[] = [];
-
-    for (const use of toolUses) {
-      const startedToolAt = Date.now();
-      onEvent({ type: "tool_start", id: use.id, name: use.name, input: use.input });
-
-      let content: string;
-      try {
-        const output = await executeTool(use.name, use.input as Record<string, unknown>);
-        content = JSON.stringify(output);
-        onEvent({
-          type: "tool_end",
-          id: use.id,
-          name: use.name,
-          ms: Date.now() - startedToolAt,
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        content = `${use.name} returned: ${message}`;
-        onEvent({
-          type: "tool_failed",
-          id: use.id,
-          name: use.name,
-          ms: Date.now() - startedToolAt,
-          message,
-        });
-      }
-
-      toolResults.push({ type: "tool_result", tool_use_id: use.id, content });
-    }
+    // The model asks for independent lookups in one turn; run them that way.
+    const toolResults = await Promise.all(toolUses.map((use) => runTool(use, onEvent)));
 
     messages.push({ role: "user", content: toolResults });
   }
