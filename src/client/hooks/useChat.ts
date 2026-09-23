@@ -3,6 +3,8 @@ import { streamChat } from "../lib/chatStream.ts";
 import type { AgentEvent, ChatTurn } from "../../shared/types.ts";
 
 export interface Message extends ChatTurn {
+  at: number;
+  tools?: ToolActivity[];
   stopped?: boolean;
 }
 
@@ -62,7 +64,7 @@ export function useChat() {
       if (!question.trim() || abortRef.current) return;
 
       const history = messages.map(({ role, text }) => ({ role, text }));
-      setMessages((prev) => [...prev, { role: "user", text: question }]);
+      setMessages((prev) => [...prev, { role: "user", text: question, at: Date.now() }]);
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -96,7 +98,13 @@ export function useChat() {
 
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", text: failure ?? state.answer.trim(), stopped },
+        {
+          role: "assistant",
+          text: failure ?? state.answer.trim(),
+          at: Date.now(),
+          tools: state.tools,
+          stopped,
+        },
       ]);
       setRun(null);
       abortRef.current = null;

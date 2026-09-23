@@ -8,18 +8,29 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   margin: 0;
 }
 
+/* The shell owns the viewport; only the transcript scrolls. */
 .app {
+  height: 100%;
   max-width: 760px;
   margin: 0 auto;
-  min-height: 100vh;
-  padding: 32px 20px 24px;
+  padding: 0 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+}
+
+header {
+  flex: none;
+  padding: 28px 0 16px;
 }
 
 header h1 {
@@ -35,9 +46,12 @@ header p {
 
 .transcript {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  padding-bottom: 16px;
 }
 
 .examples {
@@ -89,12 +103,11 @@ header p {
 }
 
 .composer {
+  flex: none;
   display: flex;
   gap: 8px;
-  position: sticky;
-  bottom: 0;
-  background: #f6f7f9;
-  padding-top: 8px;
+  padding: 12px 0 20px;
+  border-top: 1px solid #e8ebef;
 }
 
 .composer input {
@@ -122,10 +135,16 @@ header p {
   cursor: default;
 }
 
+.tools {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
 .tool {
   font-size: 12px;
   color: #62707f;
-  padding: 2px 0;
   font-variant-numeric: tabular-nums;
 }
 
@@ -270,4 +289,57 @@ header p {
 
 .markdown tbody tr:last-child td {
   border-bottom: none;
+}
+
+.turn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.turn.user {
+  align-items: flex-end;
+}
+
+.stamp {
+  font-size: 11px;
+  color: #9aa5b1;
+  padding: 0 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trail {
+  margin-bottom: 12px;
+}
+
+.trail summary {
+  font-size: 12px;
+  color: #8b97a3;
+  cursor: pointer;
+  list-style: none;
+  width: fit-content;
+}
+
+.trail summary::-webkit-details-marker {
+  display: none;
+}
+
+.trail summary::before {
+  content: "▸ ";
+  font-size: 9px;
+  vertical-align: 1px;
+}
+
+.trail[open] summary::before {
+  content: "▾ ";
+}
+
+.trail summary:hover {
+  color: #62707f;
+}
+
+.trail .tools {
+  margin: 8px 0 0;
+  padding-left: 12px;
+  border-left: 1px solid #e8ebef;
 }

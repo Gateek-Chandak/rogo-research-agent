@@ -1,6 +1,11 @@
-import { useState } from "react";
-import { useChat, type Run } from "./hooks/useChat.ts";
+import { useEffect, useRef, useState } from "react";
+import { useChat, type Run, type ToolActivity } from "./hooks/useChat.ts";
 import { Markdown } from "./components/Markdown.tsx";
+
+const clock = new Intl.DateTimeFormat(undefined, {
+  hour: "numeric",
+  minute: "2-digit",
+});
 
 const EXAMPLES = [
   "Compare Acme and Globex and tell me which one appears to be growing faster.",
@@ -9,15 +14,36 @@ const EXAMPLES = [
   "Which company in the universe is growing fastest?",
 ];
 
-function ActiveRun({ run }: { run: Run }) {
+function ToolTrail({ tools }: { tools: ToolActivity[] }) {
   return (
-    <div className="bubble assistant">
-      {run.tools.map((tool) => (
+    <div className="tools">
+      {tools.map((tool) => (
         <div key={tool.id} className={`tool ${tool.status}`}>
           {tool.name}
           {tool.ms !== undefined && <span> · {tool.ms}ms</span>}
         </div>
       ))}
+    </div>
+  );
+}
+
+function ToolSummary({ tools }: { tools: ToolActivity[] }) {
+  const elapsed = tools.reduce((total, tool) => total + (tool.ms ?? 0), 0);
+  return (
+    <details className="trail">
+      <summary>
+        {tools.length} {tools.length === 1 ? "lookup" : "lookups"} ·{" "}
+        {(elapsed / 1000).toFixed(1)}s
+      </summary>
+      <ToolTrail tools={tools} />
+    </details>
+  );
+}
+
+function ActiveRun({ run }: { run: Run }) {
+  return (
+    <div className="bubble assistant">
+      <ToolTrail tools={run.tools} />
       {run.answer ? (
         <Markdown>{run.answer}</Markdown>
       ) : (
@@ -30,6 +56,16 @@ function ActiveRun({ run }: { run: Run }) {
 export function App() {
   const { messages, run, send, stop } = useChat();
   const [input, setInput] = useState("");
+  const transcriptRef = useRef<HTMLDivElement>(null);
+
+  // Follow new output, unless the reader has scrolled up to re-read something.
+  useEffect(() => {
+    const el = transcriptRef.current;
+    if (!el) return;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 140) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [messages, run]);
 
   function submit(question: string) {
     setInput("");
@@ -43,7 +79,7 @@ export function App() {
         <p>Ask a question about a company in our coverage universe.</p>
       </header>
 
-      <div className="transcript">
+      <div className="transcript" ref={transcriptRef}>
         {messages.length === 0 && !run && (
           <div className="examples">
             {EXAMPLES.map((example) => (
@@ -55,13 +91,19 @@ export function App() {
         )}
 
         {messages.map((message, i) => (
-          <div key={i} className={`bubble ${message.role}`}>
-            {message.role === "assistant" ? (
-              <Markdown>{message.text}</Markdown>
-            ) : (
-              message.text
-            )}
-            {message.stopped && <span className="stopped">Stopped</span>}
+          <div key={i} className={`turn ${message.role}`}>
+            <div className={`bubble ${message.role}`}>
+              {message.tools && message.tools.length > 0 && (
+                <ToolSummary tools={message.tools} />
+              )}
+              {message.role === "assistant" ? (
+                <Markdown>{message.text}</Markdown>
+              ) : (
+                message.text
+              )}
+              {message.stopped && <span className="stopped">Stopped</span>}
+            </div>
+            <time className="stamp">{clock.format(message.at)}</time>
           </div>
         ))}
 
